@@ -18,6 +18,7 @@ from Crypto.PublicKey import RSA
 
 from . import const, network, zeekr_app_sig, zeekr_hmac
 from .exceptions import AuthException, ZeekrException
+from .redact import redact
 
 
 class ZeekrClient:
@@ -323,11 +324,13 @@ class ZeekrClient:
         login_data = resp.json()
 
         if not login_data or not login_data.get("success", False):
-            raise AuthException(f"Login failed: {login_data}")
+            raise AuthException(f"Login failed: {redact(login_data)}")
 
         login_token = login_data.get("data", {})
         if login_token.get("tokenName", "") != "Authorization":
-            raise AuthException(f"Unknown login token type: {login_token}")
+            raise AuthException(
+                f"Unknown login token type: {login_token.get('tokenName')!r}"
+            )
 
         self.auth_token = login_token.get("tokenValue")
         if not self.auth_token:
@@ -370,12 +373,12 @@ class ZeekrClient:
             f"{self.usercenter_host}{const.TSPCODE_URL}?tspClientId={const.DEFAULT_HEADERS.get('client-id', '')}",
         )
         if not tsp_code_block.get("success", False):
-            raise ZeekrException(f"Unable to fetch TSP Code: {tsp_code_block}")
+            raise ZeekrException(f"Unable to fetch TSP Code: {redact(tsp_code_block)}")
 
         tsp_code = tsp_code_block.get("data", {}).get("code")
         login_id = tsp_code_block.get("data", {}).get("loginId")
         if not tsp_code:
-            raise ZeekrException(f"No TSP code in response: {tsp_code_block}")
+            raise ZeekrException(f"No TSP code in response: {redact(tsp_code_block)}")
 
         return tsp_code, login_id
 
@@ -409,12 +412,12 @@ class ZeekrClient:
             json.dumps(bearer_body, separators=(",", ":")),
         )
         if not bearer_login_block.get("success", False):
-            raise AuthException(f"Bearer login failed: {bearer_login_block}")
+            raise AuthException(f"Bearer login failed: {redact(bearer_login_block)}")
 
         bearer_login_data = bearer_login_block.get("data", {})
         self.bearer_token = bearer_login_data.get("accessToken")
         if not self.bearer_token:
-            raise AuthException(f"No bearer token in response: {bearer_login_data}")
+            raise AuthException(f"No bearer token in response: {redact(bearer_login_data)}")
 
         self.logged_in_headers["authorization"] = self.bearer_token
 
